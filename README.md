@@ -1,181 +1,165 @@
-[Jwt_README.md](https://github.com/user-attachments/files/26894294/Jwt_README.md)
-# JWT 认证工具库
+# JWT 工具库
 
-一个轻量级的 .NET JWT (JSON Web Token) 认证工具库，支持令牌的生成、解析和验证。
+一个轻量、可扩展的.NET JWT认证工具库，支持多级配置降级，开箱即用。
 
-## 功能特性
+## ✨ 功能特性
+- **令牌生成与验证**：支持标准JWT令牌生成、签名验证、过期校验
+- **多级配置降级**：数据库配置优先，失败自动降级到嵌入式配置
+- **ASP.NET Core 友好**：提供一键集成扩展方法，自动配置认证中间件
+- **可选依赖**：无数据库场景可使用纯嵌入式配置，不依赖EF Core
+- **配置校验**：启动时自动校验配置合法性，避免运行时隐藏错误
+- **接口化设计**：完全基于依赖注入，单元测试友好
 
-- **令牌生成**: 快速生成 JWT 令牌
-- **令牌解析**: 解析令牌中的用户信息
-- **令牌验证**: 验证令牌合法性、过期时间和签名
-- **多配置源**: 支持从数据库或 appsettings.json 加载配置
-- **ASP.NET Core 集成**: 简洁的认证配置扩展方法
+## 📦 安装
+### 方式1：项目引用
+直接将本项目添加到你的解决方案中引用即可。
 
-## 项目结构
-
-| 文件 | 说明 |
-|------|------|
-| `JWTHelper.cs` | 核心工具类，提供解析和验证方法 |
-| `TokenServer.cs` | 令牌生成服务 |
-| `ITokenService.cs` | 令牌服务接口 |
-| `JWTOptions.cs` | JWT 配置选项 |
-| `AuthenticationExtensions.cs` | ASP.NET Core 认证扩展 |
-
-## 快速开始
-
-### 1. 安装
-
-将项目引用到你的 .NET 解决方案中，或使用 NuGet 安装相关依赖：
-
+### 方式2：NuGet（后续发布）
 ```bash
-dotnet add package Microsoft.IdentityModel.Tokens
-dotnet add package System.IdentityModel.Tokens.Jwt
+Install-Package CShaper.Jwt
 ```
 
-### 2. 配置
-
-在 `appsettings.json` 中添加 JWT 配置：
-
+## ⚙️ 配置说明
+### 1. 配置文件配置
+在项目的 `appsettings.json` 中添加以下配置（嵌入式配置模式下需将appsettings.json设置为**嵌入的资源**）：
 ```json
 {
   "JWT": {
-    "Issuer": "YourIssuer",
-    "Audience": "YourAudience",
-    "SecretKey": "YourSecretKeyMinimum32Characters",
+    "Issuer": "your-issuer",
+    "Audience": "your-audience",
+    "SecretKey": "your-32bit-secret-key-at-least-16-characters",
     "ExpireSeconds": 86400
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "your-sqlserver-connection-string"
   }
 }
 ```
 
-### 3. 生成令牌
+### 2. 数据库配置
+在数据库的 `SystemConfigs` 表中添加以下配置（数据库模式下使用）：
+| ConfigKey | ConfigValue | 说明 |
+|-----------|-------------|------|
+| JwtSecretKey | your-secret-key | 签名密钥 |
+| JwtIssuer | your-issuer | 令牌颁发者 |
+| JwtAudience | your-audience | 令牌受众 |
+| JwtExpireMinutes | 1440 | 令牌过期时间（分钟） |
 
+## 🚀 快速开始
+### 基础用法（无数据库依赖）
+在 `Program.cs` 中添加服务注册：
 ```csharp
-using System.Collections.Generic;
-using System.Security.Claims;
+var builder = WebApplication.CreateBuilder(args);
 
-// 创建用户声明
-var claims = new List<Claim>
-{
-    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-    new Claim(ClaimTypes.Name, username),
-    new Claim(ClaimTypes.Role, "admin")
-};
+// 添加JWT工具库服务
+builder.Services.AddJwtToolkit();
+// 自动配置JWT认证中间件
+builder.Services.AddJwtAuthentication();
 
-// 生成令牌
-ITokenService tokenService = new TokenServer();
-string token = tokenService.BuilderToken(claims);
+builder.Services.AddControllers();
+// ... 其他服务注册
+
+var app = builder.Build();
+
+// 启用认证中间件
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.Run();
 ```
 
-### 4. 解析令牌
-
+### 高级用法（数据库+嵌入式降级）
 ```csharp
-// 获取用户Id
-Guid userId = JWTHelper.GetUserId(token);
+var builder = WebApplication.CreateBuilder(args);
 
-// 获取用户名
-string userName = JWTHelper.GetUserName(token);
+// 添加带数据库支持的JWT服务
+builder.Services.AddJwtToolkitWithDatabase(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+// 自动配置JWT认证中间件
+builder.Services.AddJwtAuthentication();
 
-// 获取用户角色
-List<string> roles = JWTHelper.GetRoles(token);
-
-// 获取所有声明
-IEnumerable<Claim> claims = JWTHelper.ParseClaims(token);
+// ... 其余配置同上
 ```
 
-### 5. 验证令牌
-
+## 📖 API 参考
+### ITokenService（令牌生成）
 ```csharp
-// 验证令牌（验证合法性、过期、签名）
-ClaimsPrincipal? user = JWTHelper.ValidateToken(token);
+// 生成JWT令牌
+string BuildToken(IEnumerable<Claim> claims);
+```
 
-if (user != null)
+### IJwtParser（令牌解析）
+```csharp
+// 验证并解析令牌，成功返回ClaimsPrincipal，失败返回null
+ClaimsPrincipal? ValidateToken(string token);
+
+// 从令牌中获取用户ID，失败返回Guid.Empty
+Guid GetUserId(string token);
+
+// 从令牌中获取用户名，失败返回空字符串
+string GetUserName(string token);
+
+// 从令牌中获取角色列表，失败返回空集合
+List<string> GetRoles(string token);
+
+// 不安全解析（不验证签名），返回所有声明
+IEnumerable<Claim> ParseClaimsUnsafe(string token);
+```
+
+## 使用示例
+```csharp
+[ApiController]
+[Route("api/auth")]
+public class AuthController : ControllerBase
 {
-    // 令牌有效
+    private readonly ITokenService _tokenService;
+    private readonly IJwtParser _jwtParser;
+
+    public AuthController(ITokenService tokenService, IJwtParser jwtParser)
+    {
+        _tokenService = tokenService;
+        _jwtParser = jwtParser;
+    }
+
+    [HttpPost("login")]
+    public IActionResult Login([FromBody] LoginRequest request)
+    {
+        // 验证用户名密码逻辑...
+        
+        // 生成令牌
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(ClaimTypes.Name, request.Username),
+            new(ClaimTypes.Role, "user")
+        };
+        var token = _tokenService.BuildToken(claims);
+        
+        return Ok(new { Token = token });
+    }
+
+    [HttpGet("profile")]
+    [Authorize]
+    public IActionResult GetProfile()
+    {
+        var token = Request.Headers.Authorization.ToString().Replace("Bearer ", "");
+        var userId = _jwtParser.GetUserId(token);
+        var userName = _jwtParser.GetUserName(token);
+        var roles = _jwtParser.GetRoles(token);
+        
+        return Ok(new { UserId = userId, UserName = userName, Roles = roles });
+    }
 }
-else
-{
-    // 令牌无效
-}
 ```
 
-### 6. ASP.NET Core 集成
+## ⚠️ 注意事项
+1. **密钥安全**：生产环境请使用至少16位以上的复杂密钥，禁止硬编码在代码中
+2. **HTTPS**：生产环境必须使用HTTPS传输令牌，避免泄露
+3. **过期时间**：建议将过期时间设置为1-24小时，长时间令牌请配合刷新令牌使用
+4. **权限校验**：JWT只负责身份认证，接口权限请单独做校验
 
-在 `Program.cs` 中配置认证：
-
-```csharp
-builder.Services.AddAuthenticationConfig();
-```
-
-然后在需要授权的控制器或方法上使用 `[Authorize]` 属性。
-
-## API 参考
-
-### JWTHelper
-
-| 方法 | 说明 |
-|------|------|
-| `BuilderToken(claims)` | 生成令牌 (使用 TokenServer) |
-| `ParseClaims(token)` | 解析并返回所有声明 |
-| `GetUserId(token)` | 获取用户 ID |
-| `GetUserName(token)` | 获取用户名 |
-| `GetRoles(token)` | 获取用户角色列表 |
-| `ValidateToken(token)` | 验证令牌，返回 ClaimsPrincipal |
-
-### JWTOptions
-
-| 属性 | 说明 |
-|------|------|
-| `Issuer` | 签发者 |
-| `Audience` | 受众 |
-| `SecretKey` | 密钥（至少32字符） |
-| `ExpireSeconds` | 过期时间（秒） |
-
-## 配置优先级
-
-1. 优先从数据库加载配置（需要实现 DbJwtConfigProvider）
-2. 回退到 appsettings.json 配置
-3. 使用内置默认值
-
-## 示例
-
-完整的令牌生成和验证示例：
-
-```csharp
-using System;
-using System.Collections.Generic;
-using System.Security.Claims;
-
-// 1. 生成令牌
-var claims = new List<Claim>
-{
-    new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-    new Claim(ClaimTypes.Name, "zhangsan"),
-    new Claim(ClaimTypes.Role, "admin"),
-    new Claim(ClaimTypes.Role, "user")
-};
-
-ITokenService tokenService = new TokenServer();
-string token = tokenService.BuilderToken(claims);
-
-Console.WriteLine($"Token: {token}");
-
-// 2. 解析令牌
-Console.WriteLine($"UserId: {JWTHelper.GetUserId(token)}");
-Console.WriteLine($"UserName: {JWTHelper.GetUserName(token)}");
-Console.WriteLine($"Roles: {string.Join(", ", JWTHelper.GetRoles(token))}");
-
-// 3. 验证令牌
-var user = JWTHelper.ValidateToken(token);
-Console.WriteLine($"Valid: {user != null}");
-```
-
-## 依赖
-
-- .NET 6.0+
-- Microsoft.IdentityModel.Tokens
-- System.IdentityModel.Tokens.Jwt
-- Microsoft.AspNetCore.Authentication.JwtBearer
-
-## 许可
-
+## 📄 开源协议
 MIT License

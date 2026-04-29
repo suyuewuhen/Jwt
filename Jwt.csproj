@@ -4,6 +4,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+
+	 <!-- 下面这些是 NuGet 信息 -->
+	 <PackageId>JwtLibrary</PackageId>
+	 <Version>1.0.0</Version>
+	 <Authors>suyuewuhen</Authors>
+	 <Description>JWT 工具类库</Description>
+	 <PackageProjectUrl>https://github.com/suyuewuhen/Jwt</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -30,5 +38,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.6" />
     <PackageReference Include="Microsoft.SqlServer.Server" Version="1.0.0" />
   </ItemGroup>
+
 
 </Project>
