@@ -84,6 +84,66 @@ builder.Services.AddJwtAuthentication();
 // ... 其余配置同上
 ```
 
+#### 多数据库适配
+本库天然支持所有EF Core兼容的数据库，仅需更换数据库驱动和配置即可：
+
+##### MySQL
+```bash
+# 先安装MySQL驱动
+Install-Package Pomelo.EntityFrameworkCore.MySql
+```
+```csharp
+builder.Services.AddJwtToolkitWithDatabase(options =>
+{
+    options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"),
+        new MySqlServerVersion(new Version(8, 0, 23)));
+});
+```
+
+##### PostgreSQL
+```bash
+# 先安装PostgreSQL驱动
+Install-Package Npgsql.EntityFrameworkCore.PostgreSQL
+```
+```csharp
+builder.Services.AddJwtToolkitWithDatabase(options =>
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
+```
+
+##### SQLite
+```bash
+# 先安装SQLite驱动
+Install-Package Microsoft.EntityFrameworkCore.Sqlite
+```
+```csharp
+builder.Services.AddJwtToolkitWithDatabase(options =>
+{
+    options.UseSqlite("Data Source=jwtconfig.db");
+});
+```
+
+#### 自定义数据源扩展
+如果需要对接非EF Core数据源（MongoDB、Redis、配置中心等），只需实现`IJwtConfigProvider`接口并替换默认注册即可：
+```csharp
+public class CustomJwtConfigProvider : IJwtConfigProvider
+{
+    public JwtOptions GetJwtConfig()
+    {
+        // 从自定义数据源加载配置逻辑
+    }
+
+    public Task<JwtOptions> GetJwtConfigAsync(CancellationToken cancellationToken = default)
+    {
+        // 异步加载逻辑
+    }
+}
+
+// 注册自定义配置提供程序
+builder.Services.AddSingleton<IJwtConfigProvider, CustomJwtConfigProvider>();
+```
+
 ## 📖 API 参考
 ### ITokenService（令牌生成）
 ```csharp
