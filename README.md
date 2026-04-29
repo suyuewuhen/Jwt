@@ -16,7 +16,7 @@
 
 ### 方式2：NuGet（后续发布）
 ```bash
-Install-Package CShaper.Jwt
+NuGet\Install-Package JwtLibrary -Version 1.0.0
 ```
 
 ## ⚙️ 配置说明
