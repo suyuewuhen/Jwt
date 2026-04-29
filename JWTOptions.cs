@@ -52,7 +52,7 @@ namespace Jwt
         private static JWTOptions LoadFromSqlConfig()
         {
             var provider = new DbJwtConfigProvider();
-            return provider.GetJwtTokenAsync().Result;
+            return provider.GetJwtTokenAsync().ConfigureAwait(false).GetAwaiter().GetResult();
 
         }
 
