@@ -40,10 +40,8 @@ namespace Jwt
         {
             var user = ValidateToken(token);
             if (user == null)
-            // 2. 拿不到 → 验证失败
-            if (user == null)
-                return null;
-            return user.FindFirst(ClaimTypes.Name)?.Value ?? "";
+                return string.Empty;
+            return user.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
         }
 
         /// <summary>
@@ -55,7 +53,7 @@ namespace Jwt
 
             // 2. 拿不到 → 验证失败
             if (user == null)
-                return null;
+                return new List<string>();
             return user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
         }
         /// <summary>
@@ -64,7 +62,8 @@ namespace Jwt
         public static ClaimsPrincipal? ValidateToken(string token)
         {
             if(token == null) return null;
-            var hanlder = new JwtSecurityTokenHandler();
+            var handler = new JwtSecurityTokenHandler();
+            if (options.SecretKey == null) return null;
             var keyBytes = Encoding.UTF8.GetBytes(options.SecretKey);
             var param = new TokenValidationParameters
             {
@@ -82,7 +81,7 @@ namespace Jwt
             };
             try
             {
-                return hanlder.ValidateToken(token, param, out _);
+                return handler.ValidateToken(token, param, out _);
             }
             catch
             {

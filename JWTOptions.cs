@@ -8,9 +8,9 @@ namespace Jwt
 {
     public class JWTOptions
     {
-        public string Issuer { get; set; } 
-        public string Audience { get; set; } 
-        public string SecretKey { get; set; } 
+        public string? Issuer { get; set; } 
+        public string? Audience { get; set; } 
+        public string? SecretKey { get; set; } 
         public int ExpireSeconds { get; set; } 
 
 
@@ -20,7 +20,6 @@ namespace Jwt
         /// 优先从数据库加载配置，如果失败则从嵌入的资源中加载配置
         /// </summary>
         /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
         private static JWTOptions LoadConfig()
         {
             try
@@ -41,19 +40,14 @@ namespace Jwt
             return LoadFromEmbeddedConfig();
         }
 
-
-
-
         /// <summary>
         /// 从数据库中加载配置
         /// </summary>
         /// <returns></returns>
-        /// <exception cref="NotImplementedException"></exception>
         private static JWTOptions LoadFromSqlConfig()
         {
             var provider = new DbJwtConfigProvider();
             return provider.GetJwtTokenAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-
         }
 
         /// <summary>
@@ -80,10 +74,7 @@ namespace Jwt
             var jwtOpt = config.GetSection("JWT").Get<JWTOptions>() ?? new JWTOptions();
             if (string.IsNullOrEmpty(jwtOpt.SecretKey))
             {
-                jwtOpt.SecretKey = "nideyiziyijuyouruzailhuaxingshanmh";
-                jwtOpt.Issuer = "DefaultIssuer";
-                jwtOpt.Audience = "DefaultAudience";
-                jwtOpt.ExpireSeconds = 86400;
+                throw new InvalidOperationException("JWT配置缺失，请在appsettings.json或数据库中配置JWT参数（SecretKey、Issuer、Audience、ExpireSeconds）");
             }
 
             return jwtOpt;
@@ -93,5 +84,4 @@ namespace Jwt
 
     }
 
-
-    }
+}

@@ -16,6 +16,9 @@ namespace Jwt
         public static IServiceCollection AddAuthenticationConfig(this IServiceCollection services)
         {
             JWTOptions jwtOpt = JWTOptions.Instance;
+            if (jwtOpt.SecretKey == null || jwtOpt.Issuer == null || jwtOpt.Audience == null)
+                throw new InvalidOperationException("JWT配置未正确初始化");
+                
             //配置JWT认证
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
            .AddJwtBearer(x =>

@@ -17,6 +17,8 @@ namespace Jwt
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<DbJwtConfigProvider.SystemConfig>()
+                .HasKey(c => c.ConfigKey);
             modelBuilder.ApplyConfigurationsFromAssembly(this.GetType().Assembly);
         }
     }

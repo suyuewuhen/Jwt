@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography.X509Certificates;
+using System.Reflection;
 using System.Text;
 
 namespace Jwt
@@ -27,17 +27,40 @@ namespace Jwt
         }
 
         /// <summary>
-        /// 读取配置文件
+        /// 读取嵌入式配置文件
         /// </summary>
         /// <returns></returns>
         private IConfiguration LoadAppConfiguration()
         {
-            return new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-                .Build();
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceName = $"{assembly.GetName().Name}.appsettings.json";
+            var configuration = new ConfigurationBuilder();
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream != null)
+            {
+                configuration.AddJsonStream(stream);
+            }
+            return configuration.Build();
         }
 
+        /// <summary>
+        /// 同步获取JWT配置
+        /// </summary>
+        /// <returns></returns>
+        public JWTOptions GetJwtToken()
+        {
+            var configs = dbcontext.Set<SystemConfig>()
+               .Where(c => c.ConfigKey.StartsWith("Jwt"))
+               .ToList();
+            return new JWTOptions
+            {
+                SecretKey = GetValue(configs, "JwtSecretKey"),
+                Issuer = GetValue(configs, "JwtIssuer"),
+                Audience = GetValue(configs, "JwtAudience"),
+                ExpireSeconds = int.Parse(GetValue(configs, "JwtExpireMinutes", "1440")) * 60
+            };
+        }
 
         public async Task<JWTOptions> GetJwtTokenAsync()
         {
@@ -49,7 +72,7 @@ namespace Jwt
                 SecretKey = GetValue(configs, "JwtSecretKey"),
                 Issuer = GetValue(configs, "JwtIssuer"),
                 Audience = GetValue(configs, "JwtAudience"),
-                ExpireSeconds = int.Parse(GetValue(configs, "JwtExpireMinutes", "86400"))
+                ExpireSeconds = int.Parse(GetValue(configs, "JwtExpireMinutes", "1440")) * 60
             };
         }
 

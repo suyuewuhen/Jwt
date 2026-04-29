@@ -13,13 +13,15 @@ namespace Jwt
 
         public string BuilderToken(IEnumerable<Claim> claims)
         {
+            if (options.SecretKey == null || options.Issuer == null || options.Audience == null)
+                throw new InvalidOperationException("JWT配置未正确初始化");
+                
             TimeSpan ExpiryDuration = TimeSpan.FromSeconds(options.ExpireSeconds);
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(options.SecretKey));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);
             var tokenDescriptor = new JwtSecurityToken(options.Issuer, options.Audience, claims,
                 expires: DateTime.UtcNow.Add(ExpiryDuration), signingCredentials: credentials);
             return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
-
         }
         
     }
