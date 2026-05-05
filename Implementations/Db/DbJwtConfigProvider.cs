@@ -37,17 +37,18 @@ public class DbJwtConfigProvider : IJwtConfigProvider
 
     private JwtOptions BuildOptions(List<SystemConfig> configs)
     {
-        var expireMinutes = int.Parse(GetValue(configs, "JwtExpireMinutes", "1440"));
-        var refreshExpireMinutes = int.Parse(GetValue(configs, "JwtRefreshExpireMinutes", "10080"));
-        var redisConnectionString = GetValue(configs, "JwtRedisConnectionString", "localhost:6379");
+        var expireMinutes = int.Parse(GetValue(configs, "JwtExpireMinutes", "60"));
+        var refreshExpireSeconds = int.Parse(GetValue(configs, "JwtRefreshExpireSeconds", "0"));
+        var refreshExpireDays = int.Parse(GetValue(configs, "JwtRefreshExpireDays", "7"));
+        
         return new JwtOptions
         {
             SecretKey = GetValue(configs, "JwtSecretKey"),
             Issuer = GetValue(configs, "JwtIssuer"),
             Audience = GetValue(configs, "JwtAudience"),
             ExpireSeconds = expireMinutes * 60,
-            RefreshExpireSeconds = refreshExpireMinutes * 60,
-            RedisConnectionString = redisConnectionString
+            RefreshTokenExpireSeconds = refreshExpireSeconds,
+            RefreshTokenExpireDays = refreshExpireDays
         };
     }
 

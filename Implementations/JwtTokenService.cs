@@ -74,7 +74,7 @@ public class JwtTokenService : ITokenService, IJwtParser
 
         // 生成高熵RefreshToken
         var refreshToken = GenerateRefreshToken();
-        var expireTime = DateTime.UtcNow.AddDays(_options.RefreshTokenExpireDays);
+        var expireTime = DateTime.UtcNow.AddSeconds(_options.FinalRefreshTokenExpireSeconds);
         
         // 存储RefreshToken信息
         var tokenInfo = new RefreshTokenInfo

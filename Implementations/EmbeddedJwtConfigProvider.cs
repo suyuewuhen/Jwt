@@ -52,5 +52,7 @@ public class EmbeddedJwtConfigProvider : IJwtConfigProvider
             throw new InvalidOperationException("JWT Audience 配置不能为空");
         if (options.ExpireSeconds <= 0)
             throw new InvalidOperationException("JWT ExpireSeconds 必须大于0");
+        if (options.FinalRefreshTokenExpireSeconds <= 0)
+            throw new InvalidOperationException("JWT RefreshToken过期时间必须大于0，请配置RefreshTokenExpireDays或RefreshTokenExpireSeconds");
     }
 }
