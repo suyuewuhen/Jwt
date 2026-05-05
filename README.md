@@ -19,7 +19,7 @@
 
 ### 方式2：NuGet（后续发布）
 ```bash
-NuGet\Install-Package JwtLibrary -Version 1.0.0
+NuGet\Install-Package JwtLibrary -Version 1.0.1
 ```
 
 ## ⚙️ 配置说明
