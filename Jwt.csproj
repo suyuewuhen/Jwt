@@ -8,7 +8,7 @@
 
 	 <!-- 下面这些是 NuGet 信息 -->
 	 <PackageId>JwtLibrary</PackageId>
-	 <Version>1.0.1</Version>
+	 <Version>1.0.2</Version>
 	 <Authors>suyuewuhen</Authors>
 	 <Description>JWT 工具类库</Description>
 	 <PackageProjectUrl>https://github.com/suyuewuhen/Jwt</PackageProjectUrl>

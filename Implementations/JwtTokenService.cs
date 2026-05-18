@@ -27,14 +27,17 @@ public class JwtTokenService : ITokenService, IJwtParser
 {
     private readonly JwtOptions _options;
     private readonly IDistributedCache _cache;
+    private readonly IJwtAuditLogger? _auditLogger;
     private readonly JwtSecurityTokenHandler _tokenHandler = new();
     private const string RefreshTokenPrefix = "jwt:refresh:";
     private const string UserRefreshTokensPrefix = "jwt:user:tokens:";
+    private const string RefreshFailCountPrefix = "jwt:refresh:fail:";
 
-    public JwtTokenService(JwtOptions options, IDistributedCache cache)
+    public JwtTokenService(JwtOptions options, IDistributedCache cache, IJwtAuditLogger? auditLogger = null)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _auditLogger = auditLogger;
     }
 
     #region ITokenService 实现
@@ -112,6 +115,12 @@ public class JwtTokenService : ITokenService, IJwtParser
             
             tokenList.Add(refreshToken);
             await _cache.SetStringAsync(userTokensKey, JsonSerializer.Serialize(tokenList), cacheOptions);
+        }
+
+        // 记录审计日志
+        if (_auditLogger != null)
+        {
+            await _auditLogger.LogTokenGeneratedAsync(userId, deviceId, claimsList);
         }
 
         return (accessToken, refreshToken);
@@ -296,20 +305,112 @@ public class JwtTokenService : ITokenService, IJwtParser
         return user.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
     }
 
-    public IEnumerable<Claim> ParseClaimsUnsafe(string token)
-    {
-        if (string.IsNullOrWhiteSpace(token))
-            return Enumerable.Empty<Claim>();
+        public IEnumerable<Claim> ParseClaimsUnsafe(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return Enumerable.Empty<Claim>();
 
-        try
-        {
-            var jwt = _tokenHandler.ReadJwtToken(token);
-            return jwt.Claims;
+            try
+            {
+                var jwt = _tokenHandler.ReadJwtToken(token);
+                return jwt.Claims;
+            }
+            catch
+            {
+                return Enumerable.Empty<Claim>();
+            }
         }
-        catch
+
+
+    /// <summary>
+    /// 获取用户手机号
+    /// </summary>
+    /// <param name="token"></param>
+    /// <returns></returns>
+        public string GetUserPhone(string token)
         {
-            return Enumerable.Empty<Claim>();
+            var user = ValidateToken(token);
+            if (user == null)
+                return string.Empty;
+            return user.FindFirst(ClaimTypes.MobilePhone)?.Value ?? string.Empty;
         }
-    }
-    #endregion
+
+        /// <summary>
+        /// 获取用户邮箱
+        /// </summary>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public string GetUserEmail(string token)
+        {
+            var user = ValidateToken(token);
+            if (user == null)
+                return string.Empty;
+            return user.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+        }
+
+        /// <summary>
+        /// 获取租户ID
+        /// </summary>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        public Guid GetTenantId(string token)
+        {
+            var user = ValidateToken(token);
+            if (user == null)
+                return Guid.Empty;
+
+            var value = user.FindFirst("TenantId")?.Value ?? string.Empty;
+            return Guid.TryParse(value, out var id) ? id : Guid.Empty;
+        }
+
+        /// <summary>
+        /// 获取指定声明的值
+        /// </summary>
+        /// <param name="token"></param>
+        /// <param name="claimType"></param>
+        /// <returns></returns>
+        public string GetClaimValue(string token, string claimType)
+        {
+            var user = ValidateToken(token);
+            if (user == null)
+                return string.Empty;
+            return user.FindFirst(claimType)?.Value ?? string.Empty;
+        }
+
+    /// <summary>
+    /// 检查令牌是否在黑名单中（被吊销）
+    /// </summary>
+    /// <param name="token"></param>
+    /// <returns></returns>
+    public async Task<bool> IsTokenBlacklistedAsync(string token)
+        {
+            if (!_options.EnableAccessTokenBlacklist || string.IsNullOrWhiteSpace(token))
+                return false;
+
+            var key = $"{_options.BlacklistPrefix}{token}";
+            return await _cache.GetStringAsync(key) != null;
+        }
+
+        /// <summary>
+        /// 添加令牌到黑名单（被吊销）
+        /// </summary>
+        /// <param name="token"></param>
+        /// <param name="expireTime"></param>
+        /// <returns></returns>
+        public async Task AddToBlacklistAsync(string token, DateTime expireTime)
+        {
+            if (!_options.EnableAccessTokenBlacklist || string.IsNullOrWhiteSpace(token))
+                return;
+
+            var key = $"{_options.BlacklistPrefix}{token}";
+            var expireSeconds = (int)(expireTime - DateTime.UtcNow).TotalSeconds;
+            if (expireSeconds <= 0)
+                return;
+
+            await _cache.SetStringAsync(key, "1", new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(expireSeconds)
+            });
+        }
+        #endregion
 }
