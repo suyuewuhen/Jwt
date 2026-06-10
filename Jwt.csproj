@@ -14,7 +14,6 @@
 	 <PackageProjectUrl>https://github.com/suyuewuhen/Jwt</PackageProjectUrl>
 
 	  <!-- 下面这些是许可证信息 -->
-	 <PackageLicenseExpression>MIT</PackageLicenseExpression>
 	 <PackageLicenseFile>COPYING.txt</PackageLicenseFile>
   </PropertyGroup>
 
