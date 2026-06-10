@@ -10,6 +10,25 @@ using Microsoft.IdentityModel.Tokens;
 namespace Jwt.Implementations;
 
 /// <summary>
+/// 简化的Claim结构，用于序列化
+/// </summary>
+internal class SimpleClaim
+{
+    public string Type { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+
+    public SimpleClaim() { }
+
+    public SimpleClaim(string type, string value)
+    {
+        Type = type;
+        Value = value;
+    }
+
+    public Claim ToClaim() => new(Type, Value);
+}
+
+/// <summary>
 /// 刷新令牌存储信息
 /// </summary>
 internal class RefreshTokenInfo
@@ -17,7 +36,12 @@ internal class RefreshTokenInfo
     public Guid UserId { get; set; }
     public string DeviceId { get; set; } = string.Empty;
     public DateTime ExpireTime { get; set; }
-    public List<Claim> Claims { get; set; } = [];
+    public List<SimpleClaim> Claims { get; set; } = [];
+
+    /// <summary>
+    /// 转换为标准Claim列表
+    /// </summary>
+    public List<Claim> ToClaims() => Claims.Select(c => c.ToClaim()).ToList();
 }
 
 /// <summary>
@@ -85,7 +109,7 @@ public class JwtTokenService : ITokenService, IJwtParser
             UserId = userId,
             DeviceId = deviceId,
             ExpireTime = expireTime,
-            Claims = claimsList
+            Claims = claimsList.Select(c => new SimpleClaim(c.Type, c.Value)).ToList()
         };
 
         var cacheOptions = new DistributedCacheEntryOptions
@@ -169,8 +193,26 @@ public class JwtTokenService : ITokenService, IJwtParser
             }
         }
 
+        // 滑动过期处理：如果剩余有效期小于阈值，延长有效期
+        var claims = tokenInfo.ToClaims();
+        if (_options.EnableSlidingExpiration)
+        {
+            var remainingSeconds = (tokenInfo.ExpireTime - DateTime.UtcNow).TotalSeconds;
+            if (remainingSeconds < _options.SlidingExpirationThreshold)
+            {
+                // 延长RefreshToken有效期
+                tokenInfo.ExpireTime = DateTime.UtcNow.AddSeconds(_options.FinalSlidingExtendSeconds);
+            }
+        }
+
+        // 记录审计日志
+        if (_auditLogger != null)
+        {
+            await _auditLogger.LogTokenRefreshedAsync(tokenInfo.UserId, deviceId, refreshToken);
+        }
+
         // 生成新的双令牌
-        return await BuildTokensAsync(tokenInfo.Claims, deviceId);
+        return await BuildTokensAsync(claims, deviceId);
     }
 
     /// <summary>
